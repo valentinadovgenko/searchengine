@@ -1,10 +1,13 @@
 package searchengine.controllers;
 
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
+import searchengine.model.SiteRepository;
 
 @Controller
 public class DefaultController {
+
 
     /**
      * Метод формирует страницу из HTML-файла index.html,

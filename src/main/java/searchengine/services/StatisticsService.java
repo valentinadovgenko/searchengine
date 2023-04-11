@@ -1,10 +1,31 @@
 package searchengine.services;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 import searchengine.dto.statistics.StatisticsResponse;
+import searchengine.model.PageTable;
 import searchengine.model.SiteTable;
 
+import java.util.List;
+
 public interface StatisticsService {
+
+
+    List<PageTable> getAllPage();
+
+
+    List<SiteTable> getAllSite();
+
+    void deletePage(int id);
+
+
+    void deletePageAll();
+
+    void deleteSiteAll();
+
+    void deleteSite(int id);
+
     StatisticsResponse getStatistics();
+
+    default void startIndexing() {
+
+    }
 }

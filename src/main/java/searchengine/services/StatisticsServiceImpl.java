@@ -9,11 +9,9 @@ import searchengine.dto.statistics.DetailedStatisticsItem;
 import searchengine.dto.statistics.StatisticsData;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.dto.statistics.TotalStatistics;
-import searchengine.model.SiteRepository;
+import searchengine.model.*;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -22,9 +20,87 @@ public class StatisticsServiceImpl implements StatisticsService {
     private final Random random = new Random();
     private final SitesList sites;
 
+    //   ************************* My code ********************
+    @Autowired
+    private final SiteRepository siteRepository;
+    @Autowired
+    private final PageRepository pageRepository;
+
+    @Override
+    public List<PageTable> getAllPage() {
+        return (List<PageTable>) pageRepository.findAll();
+    }
+
+    @Override
+    public List<SiteTable> getAllSite() {
+        return (List<SiteTable>) siteRepository.findAll();
+    }
+
+    @Override
+    public void deletePage(int id) {
+
+        pageRepository.deleteById(id);
+    }
+
+    @Override
+    public void deletePageAll() {
+        pageRepository.deleteAll();
+    }
+    @Override
+    public void deleteSiteAll() {
+        siteRepository.deleteAll();
+    }
+
+
+    @Override
+    public void deleteSite(int id) {
+        siteRepository.deleteById(id);
+    }
+
+    @Override
+    public void startIndexing() {
+
+        List<Site> list = sites.getSites();
+
+        for ( int i = 0; i < list.size(); i++ ) {
+            String path = list.get(i).getUrl();
+            String name = list.get(i).getName();
+            String lastError = "";
+            Date statusDate = new Date();
+            System.out.println( name + " **** " + path + " **** " + statusDate);
+
+            SiteTable currentSite = siteRepository.findByName(name);
+            System.out.println(currentSite.getId() + "|||" + currentSite.getStatus());
+            if (currentSite != null) {
+                pageRepository.deleteBySite(currentSite);
+                siteRepository.deleteById(currentSite.getId());
+            }
+
+
+            SiteTable siteTable = new SiteTable(StatusList.INDEXING, statusDate, lastError, path, name);
+            siteRepository.save(siteTable);
+             currentSite = siteRepository.findByName(name);
+            createPage(currentSite);
+        }
+    }
+
+    private void createPage(SiteTable siteTable) {
+        IndexingSite indexingSite = new IndexingSite(siteTable.getUrl());
+        Set<PageLink> links = indexingSite.getVector();
+        for(PageLink p: links) {
+            PageTable pageTable = new PageTable(siteTable, p.getValue(), p.getCode(), p.getContent());
+            pageRepository.save(pageTable);
+        }
+        siteTable.setStatus(StatusList.INDEXED);
+        siteRepository.save(siteTable);
+    }
+
+
+//    ****************************
+
     @Override
     public StatisticsResponse getStatistics() {
-        String[] statuses = { "INDEXED", "FAILED", "INDEXING" };
+        String[] statuses = {"INDEXED", "FAILED", "INDEXING"};
         String[] errors = {
                 "Ошибка индексации: главная страница сайта не доступна",
                 "Ошибка индексации: сайт не доступен",
@@ -37,7 +113,7 @@ public class StatisticsServiceImpl implements StatisticsService {
 
         List<DetailedStatisticsItem> detailed = new ArrayList<>();
         List<Site> sitesList = sites.getSites();
-        for(int i = 0; i < sitesList.size(); i++) {
+        for ( int i = 0; i < sitesList.size(); i++ ) {
             Site site = sitesList.get(i);
             DetailedStatisticsItem item = new DetailedStatisticsItem();
             item.setName(site.getName());

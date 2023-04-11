@@ -24,6 +24,14 @@ public class SiteTable {
     public SiteTable() {
     }
 
+    public SiteTable( StatusList status, Date statusTime, String lastError, String url, String name) {
+        this.status = status;
+        this.statusTime = statusTime;
+        this.lastError = lastError;
+        this.url = url;
+        this.name = name;
+    }
+
     public int getId() {
         return id;
     }

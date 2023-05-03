@@ -1,10 +1,6 @@
 package searchengine.services;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 import searchengine.config.Site;
-import searchengine.config.SitesList;
-
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,14 +13,12 @@ public class ForkJoinIndex extends RecursiveTask<List<IndexingSite>> {
     private List<String> sites = new ArrayList<>();
     private String site;
 
-//    public ForkJoinIndex(IndexingSite url) {
-//        indexingSite = url;
-//    }
     public ForkJoinIndex(String site) {this.site=site;}
 
     public ForkJoinIndex(List<String> sites) {
         this.sites = sites;
     }
+
 
     @Override
     protected List<IndexingSite> compute() {

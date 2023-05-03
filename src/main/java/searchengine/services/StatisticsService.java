@@ -9,11 +9,6 @@ import java.util.List;
 public interface StatisticsService {
 
 
-    List<PageTable> getAllPage();
-
-
-    List<SiteTable> getAllSite();
-
     void deletePage(int id);
 
 
@@ -23,9 +18,9 @@ public interface StatisticsService {
 
     void deleteSite(int id);
 
+    String startIndexing();
+
     StatisticsResponse getStatistics();
 
-    default void startIndexing() {
 
-    }
 }

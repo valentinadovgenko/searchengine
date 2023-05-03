@@ -32,20 +32,12 @@ public class ApiController {
     }
 //    *****************  This is my addition / Valentina/
 
-    @GetMapping("/getPageAll")  //    return table page all records
-    public String getPage() {
-        Iterable<PageTable> pages = statisticsService.getAllPage();
-        String result = "";
-        for ( PageTable p : pages ) {
-            result = result.concat("\n").concat(p.getPathText());
-        }
-        return result;
-    }
- @GetMapping("/startIndexing") //    return table site all records
+ @GetMapping("/startIndexing")
     public ResponseEntity startIndexing() {
-        String result=" YES";
-        statisticsService.startIndexing();
+        String result = statisticsService.startIndexing();
      return new ResponseEntity<>(result, HttpStatus.OK);
+
+     //    Вывод всех записей таблицы
 
 //        Iterable<SiteTable> siteTables =statisticsService.getAllSite();
 //        for (SiteTable s: siteTables) {

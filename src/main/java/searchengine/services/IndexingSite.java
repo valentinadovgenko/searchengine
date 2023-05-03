@@ -5,6 +5,9 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Autowired;
+import searchengine.config.Site;
+import searchengine.model.*;
 
 
 import java.io.IOException;
@@ -12,15 +15,19 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class IndexingSite {
 // TODO: Запуск сервиса индефикации сайтов.
 
     // TODO: Брать из конфигурации приложения список сайтов config/Site
+
+    @Autowired
+    public SiteRepository siteRepository;
+    @Autowired
+    public PageRepository pageRepository;
     private String textPath;
-    //Должен быть потокобезопасный HashTable
-//    private Hashtable<String,String> mapPage = new Hashtable<>();
     private LinkedHashSet<PageLink> vector = new LinkedHashSet<>();
     static int exceptionCode = 0;
     public IndexingSite(String textPath) {
@@ -36,10 +43,6 @@ public class IndexingSite {
         return vector;
     }
 
-
-//    public Hashtable<String, String> getMapPage() {
-//        return mapPage;
-//    }
 
     private LinkedHashSet<PageLink> parseSite(String textPath)  {
 
@@ -57,7 +60,7 @@ public class IndexingSite {
                         per = parseContent(url);
                         if (notFound(vector, url)) {
                             vector.add(new PageLink(url, value, per, exceptionCode));
-                            System.out.println(value + " / " + exceptionCode);
+//                            System.out.println(value + " / " + exceptionCode);
                         }
                     }
                 }
@@ -67,14 +70,15 @@ public class IndexingSite {
         }
         return vector;
     }
-
+// Парсим каждую ссылку отдельно и возвращаем код соединения и содержимое кода
     public static String parseContent(String url) throws IOException {
         URL urlConnet = new URL(url);
         HttpURLConnection http = (HttpURLConnection) urlConnet.openConnection();
         exceptionCode = http.getResponseCode();
         try {
             Document document=Jsoup.connect(url).get();
-            return document.outerHtml();
+//            return document.outerHtml();
+            return document.title();
         } catch (Exception ex) {
             ex.printStackTrace();
             return "NO";
@@ -92,5 +96,10 @@ public class IndexingSite {
         }
         return result;
     }
+   public void print(LinkedHashSet<PageLink> list) {
+        for(PageLink item:list) {
+            System.out.println(item.getValue() + " **** " + item.getCode() + " *** " + item.getContent());
+        }
+   }
 
 }

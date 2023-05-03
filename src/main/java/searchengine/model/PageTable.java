@@ -12,7 +12,8 @@ public class PageTable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
-    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+//    cascade = CascadeType.ALL,
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "site_id", nullable = false)
     private SiteTable site;
     @Column(name = "path", nullable = false, unique = true)
@@ -25,7 +26,7 @@ public class PageTable {
     public PageTable() {
     }
 
-    public PageTable(SiteTable site,String pathText, int code, String content) {
+    public PageTable(SiteTable site, String pathText, int code, String content) {
         this.site = site;
         this.pathText = pathText;
         this.code = code;

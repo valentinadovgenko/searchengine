@@ -12,6 +12,7 @@ import searchengine.dto.statistics.TotalStatistics;
 import searchengine.model.*;
 
 import java.util.*;
+import java.util.concurrent.ForkJoinPool;
 
 @Service
 @RequiredArgsConstructor
@@ -26,15 +27,6 @@ public class StatisticsServiceImpl implements StatisticsService {
     @Autowired
     private final PageRepository pageRepository;
 
-    @Override
-    public List<PageTable> getAllPage() {
-        return (List<PageTable>) pageRepository.findAll();
-    }
-
-    @Override
-    public List<SiteTable> getAllSite() {
-        return (List<SiteTable>) siteRepository.findAll();
-    }
 
     @Override
     public void deletePage(int id) {
@@ -46,55 +38,70 @@ public class StatisticsServiceImpl implements StatisticsService {
     public void deletePageAll() {
         pageRepository.deleteAll();
     }
+
     @Override
     public void deleteSiteAll() {
         siteRepository.deleteAll();
     }
-
-
     @Override
     public void deleteSite(int id) {
         siteRepository.deleteById(id);
     }
 
     @Override
-    public void startIndexing() {
-
+    public String startIndexing() {
+        String result= "";
         List<Site> list = sites.getSites();
+
+//        Запускаим fork Join
+//        result = new ForkJoinPool().invoke(new ForkJoinTables(list));
 
         for ( int i = 0; i < list.size(); i++ ) {
             String path = list.get(i).getUrl();
             String name = list.get(i).getName();
             String lastError = "";
             Date statusDate = new Date();
-            System.out.println( name + " **** " + path + " **** " + statusDate);
+            System.out.println(name + " **** " + path + " **** " + statusDate);
+
+//            //  Проверяем наличие сайта и если есть такой в таблицах удаляяем
 
             SiteTable currentSite = siteRepository.findByName(name);
-            System.out.println(currentSite.getId() + "|||" + currentSite.getStatus());
+
             if (currentSite != null) {
-                pageRepository.deleteBySite(currentSite);
-                siteRepository.deleteById(currentSite.getId());
+                System.out.println(currentSite.getId() + "|||" + currentSite.getStatus());
+                if (currentSite.getStatus() == StatusList.INDEXING) {
+                    result = " result : false" + "\n" + "error : Индексация уже запущена";
+                    break;
+
+                } else {
+                    pageRepository.deleteBySite(currentSite);
+                    siteRepository.deleteById(currentSite.getId());
+                }
             }
-
-
+//  Добавляем запись в таблицу Site
             SiteTable siteTable = new SiteTable(StatusList.INDEXING, statusDate, lastError, path, name);
             siteRepository.save(siteTable);
-             currentSite = siteRepository.findByName(name);
+            currentSite = siteRepository.findByName(name);
+            //  Добавляем запись в таблицу Page
+
             createPage(currentSite);
+            result = "result : true";
         }
+
+        return result;
     }
 
     private void createPage(SiteTable siteTable) {
         IndexingSite indexingSite = new IndexingSite(siteTable.getUrl());
+
         Set<PageLink> links = indexingSite.getVector();
-        for(PageLink p: links) {
+        for ( PageLink p : links ) {
             PageTable pageTable = new PageTable(siteTable, p.getValue(), p.getCode(), p.getContent());
             pageRepository.save(pageTable);
         }
         siteTable.setStatus(StatusList.INDEXED);
         siteRepository.save(siteTable);
     }
-
 
 //    ****************************
 

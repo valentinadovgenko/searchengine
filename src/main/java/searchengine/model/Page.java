@@ -1,21 +1,19 @@
 package searchengine.model;
 
-import searchengine.config.Site;
-
 import javax.persistence.*;
 
 @Entity
 @Table(name = "page", indexes = {
         @Index(name="site_id", columnList = "id")
 })
-public class PageTable {
+public class Page {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 //    cascade = CascadeType.ALL,
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "site_id", nullable = false)
-    private SiteTable site;
+    private Site site;
     @Column(name = "path", nullable = false, unique = true)
     private String pathText;
     @Column(nullable = false)
@@ -23,10 +21,10 @@ public class PageTable {
     @Column(columnDefinition = "MEDIUMTEXT", nullable = false)
     private String content;
 
-    public PageTable() {
+    public Page() {
     }
 
-    public PageTable(SiteTable site, String pathText, int code, String content) {
+    public Page(Site site, String pathText, int code, String content) {
         this.site = site;
         this.pathText = pathText;
         this.code = code;
@@ -41,11 +39,11 @@ public class PageTable {
         this.id = id;
     }
 
-    public SiteTable getSite() {
+    public Site getSite() {
         return site;
     }
 
-    public void setSite(SiteTable site) {
+    public void setSite(Site site) {
         this.site = site;
     }
 

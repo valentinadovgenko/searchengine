@@ -1,17 +1,22 @@
 package searchengine.services;
 
-public class PageLink {
+import java.util.Objects;
+
+public class PageLink  {
     private String url;
-    private String value;
+//    private String value;
     private String content;
     private int code;
 // TODO: Данный временный класс для парсинга сайтов по заданному пути
-    public PageLink(String url, String value, String content, int code) {
+    public PageLink(String url) {
         this.url = url;
-        this.value = value;
+    }
+    public PageLink(String url, String content, int code) {
+        this.url = url;
         this.content = content;
         this.code = code;
     }
+
 
     public String getUrl() {
         return url;
@@ -37,12 +42,17 @@ public class PageLink {
         this.code = code;
     }
 
-    public String getValue() {
-        return value;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof PageLink pageLink)) return false;
+        return url.equals(pageLink.url);
     }
 
-    public void setValue(String value) {
-        this.value = value;
+    @Override
+    public int hashCode() {
+        return Objects.hash(url);
     }
+
 }
 

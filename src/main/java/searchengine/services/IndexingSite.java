@@ -1,105 +1,85 @@
 package searchengine.services;
 
-import lombok.val;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.springframework.beans.factory.annotation.Autowired;
-import searchengine.config.Site;
-import searchengine.model.*;
-
-
 import java.io.IOException;
-
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.RecursiveTask;
 
-public class IndexingSite {
-// TODO: Запуск сервиса индефикации сайтов.
+public class IndexingSite extends RecursiveTask<LinkedHashSet> {
 
-    // TODO: Брать из конфигурации приложения список сайтов config/Site
-
-    @Autowired
-    public SiteRepository siteRepository;
-    @Autowired
-    public PageRepository pageRepository;
-    private String textPath;
-    private LinkedHashSet<PageLink> vector = new LinkedHashSet<>();
+    private String url;
     static int exceptionCode = 0;
-    public IndexingSite(String textPath) {
-        this.textPath = textPath;
-        vector=parseSite(textPath);
+    static volatile LinkedHashSet<PageLink> finalSetForPage = new LinkedHashSet<>();
+
+    public IndexingSite(String url) {
+        this.url = url;
     }
 
-    public String getTextPath() {
-        return textPath;
-    }
-
-    public LinkedHashSet<PageLink> getVector() {
-        return vector;
-    }
-
-
-    private LinkedHashSet<PageLink> parseSite(String textPath)  {
-
+    @Override
+    protected LinkedHashSet<PageLink> compute() {
+        List<IndexingSite> taskList = new ArrayList<>();
+        LinkedHashSet<PageLink> pageLinks = new LinkedHashSet<>(parserSite(url));
+        System.out.printf("Task %s execute in thread %s%n", this, Thread.currentThread().getName());
+        finalSetForPage.addAll(pageLinks);
         try {
-            Document doc = Jsoup.connect(textPath).get();
-//            System.out.println(doc.outerHtml());
-            Elements result = doc.select("a[href]");
-            for ( Element item : result ) {
-                String value = item.attr("href");
-                String url = item.absUrl("href");
-                if ((value.length() > 1)) {
-                    char first = value.charAt(0);
-                    String per="";
-                    if (first == '/') {
-                        per = parseContent(url);
-                        if (notFound(vector, url)) {
-                            vector.add(new PageLink(url, value, per, exceptionCode));
-//                            System.out.println(value + " / " + exceptionCode);
-                        }
-                    }
+            Thread.sleep(5);
+        for ( PageLink item : pageLinks ) {
+            IndexingSite task = new IndexingSite(item.getUrl());
+            task.fork();
+            taskList.add(task);
+        }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        for ( IndexingSite task : taskList ) {
+            pageLinks.addAll(task.join());
+        }
+        return finalSetForPage;
+    }
+
+    private LinkedHashSet<PageLink> parserSite(String link) {
+        LinkedHashSet<PageLink> pageLinks = new LinkedHashSet<>();
+        try {
+            Document doc = Jsoup.connect(link).get();
+            Elements results = doc.select("a");
+            for ( Element item : results ) {
+                String path = item.absUrl("href");
+                String basePath = item.baseUri();
+                if (path.startsWith(basePath) && (!path.isEmpty()) && (!path.endsWith(".pdf"))
+                        && (!finalSetForPage.contains(new PageLink(path))) ) {
+//                        System.out.println("url = " + path + " + baseUri = " + basePath);
+                        pageLinks.add(new PageLink(path, parserLink(path), exceptionCode));
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return vector;
+        return pageLinks;
     }
-// Парсим каждую ссылку отдельно и возвращаем код соединения и содержимое кода
-    public static String parseContent(String url) throws IOException {
-        URL urlConnet = new URL(url);
+
+    // Парсим каждую ссылку отдельно и возвращаем код соединения и содержимое кода
+    public static String parserLink(String path) throws IOException {
+
+        URL urlConnet = new URL(path);
         HttpURLConnection http = (HttpURLConnection) urlConnet.openConnection();
         exceptionCode = http.getResponseCode();
-        try {
-            Document document=Jsoup.connect(url).get();
-//            return document.outerHtml();
-            return document.title();
-        } catch (Exception ex) {
-            ex.printStackTrace();
+
+        if (exceptionCode <= 299) {
+            Document document = Jsoup.connect(path).get();
+            return document.outerHtml();
+        } else {
             return "NO";
         }
     }
-
-// Проверка на неповторимость ссылки
-    public Boolean notFound(LinkedHashSet<PageLink> list, String url) {
-        boolean result = true;
-        for ( PageLink p : list ) {
-            if (p.getUrl().equals(url)) {
-                result = false;
-                break;
-            }
-        }
-        return result;
+    public static void clearFinalSetForPage() {
+        finalSetForPage.clear();
     }
-   public void print(LinkedHashSet<PageLink> list) {
-        for(PageLink item:list) {
-            System.out.println(item.getValue() + " **** " + item.getCode() + " *** " + item.getContent());
-        }
-   }
+
 
 }

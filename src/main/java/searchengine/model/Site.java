@@ -1,11 +1,10 @@
 package searchengine.model;
 
 import javax.persistence.*;
-import java.time.LocalDateTime;
 import java.util.Date;
 @Entity
 @Table (name = "site")
-public class SiteTable {
+public class Site {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
@@ -21,10 +20,10 @@ public class SiteTable {
     @Column(columnDefinition = "VARCHAR(255)", nullable = false)
     private String name;
 
-    public SiteTable() {
+    public Site() {
     }
 
-    public SiteTable( StatusList status, Date statusTime, String lastError, String url, String name) {
+    public Site(StatusList status, Date statusTime, String lastError, String url, String name) {
         this.status = status;
         this.statusTime = statusTime;
         this.lastError = lastError;

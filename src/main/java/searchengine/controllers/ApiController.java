@@ -31,14 +31,14 @@ private IndexService indexService;
 
  @GetMapping("/startIndexing")
     public ResponseEntity startIndexing() {
-     return ResponseEntity.ok(indexService.startIndexing());
+     return ResponseEntity.ok("result: ".concat(indexService.startIndexing()));
 
 }
 
     @GetMapping("/stopIndexing")
     public ResponseEntity stopIndexing() {
 
-        return ResponseEntity.ok(indexService.stopIndexing());
+        return ResponseEntity.ok("result: ".concat(indexService.stopIndexing()));
     }
 
 //    ******************************************************

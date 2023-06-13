@@ -14,7 +14,7 @@ import java.util.*;
 import java.util.concurrent.ForkJoinPool;
 
 @Service
-public class IndexService {
+public class IndexService extends Thread {
     @Autowired
     private SitesList sites;
     @Autowired
@@ -28,79 +28,85 @@ public class IndexService {
         List<Site> listSites = sites.getSites();
 
         for ( int i = 0; i < listSites.size(); i++ ) {
-            String path = listSites.get(i).getUrl();
-            String name = listSites.get(i).getName();
-            String lastError = "";
-            Date statusDate = new Date();
-            System.out.println(name + " **** " + path + " **** " + statusDate);
 
-            //  Проверяем наличие сайта и если есть такой в таблицах удаляяем
+            if (!IndexingSite.isStopIndexing()) {
+                String path = listSites.get(i).getUrl();
+                String name = listSites.get(i).getName();
+                String lastError = "";
+                Date statusDate = new Date();
+                System.out.println(name + " **** " + path + " **** " + statusDate);
 
-            searchengine.model.Site currentSite = siteRepository.findByName(name);
+                //  Проверяем наличие сайта и если есть такой в таблицах удаляяем записи
 
-            if (currentSite != null) {
-                if (currentSite.getStatus() == StatusList.INDEXING) {
-                    result = result + " result : false" + "\n" + "error : Индексация уже запущена" + "\n";
-                    continue;
+                searchengine.model.Site currentSite = siteRepository.findByName(name);
+
+                if (currentSite != null) {
+                    if (currentSite.getStatus() == StatusList.INDEXING) {
+                        result = result + " false" + "\n" + "error : Индексация уже запущена" + "\n";
+                        break;
+                    } else {
+                        pageRepository.deleteBySite(currentSite);
+//                    siteRepository.deleteById(currentSite.getId());
+                    }
                 } else {
-                    System.out.println(currentSite.getId() + " record is deleted");
-                    pageRepository.deleteBySite(currentSite);
-                    siteRepository.deleteById(currentSite.getId());
+                    //  Добавляем запись в таблицу Site
+                    System.out.println("Adding records");
+                    searchengine.model.Site siteTable =
+                            new searchengine.model.Site(StatusList.INDEXING, statusDate, lastError, path, name);
+                    siteRepository.save(siteTable);
+                    currentSite = siteRepository.findByName(name);
                 }
-            }
-            //  Добавляем запись в таблицу Site
-            System.out.println("Adding records");
-            searchengine.model.Site siteTable =
-                    new searchengine.model.Site(StatusList.INDEXING, statusDate, lastError, path, name);
-            siteRepository.save(siteTable);
 
-            currentSite = siteRepository.findByName(name);
+                // Запускаим Fork Join
 
-            // Запускаим Fork Join
-            IndexingSite.clearFinalSetForPage();
-            LinkedHashSet<PageLink> links = new ForkJoinPool().invoke(new IndexingSite(path));
-            System.out.println("Set from class PageLink is ready for writing to table!   " + new Date());
-
-            //  Добавляем запись в таблицу Page
-            currentSite.setStatusTime(new Date());
-            siteRepository.save(siteTable);
-            if(!links.isEmpty()) {
-                for ( PageLink p : links ) {
-                    Page pageTable = new Page(currentSite, p.getUrl(), p.getCode(), p.getContent());
-                    pageRepository.save(pageTable);
+                IndexingSite.clearFinalSetForPage();
+                ForkJoinPool pool = new ForkJoinPool();
+                LinkedHashSet<PageLink> links = pool.invoke(new IndexingSite(path));
+                if (!links.isEmpty()) {
+                    currentSite.setStatus(StatusList.INDEXED);
+                    addPageTable(links, currentSite);
+                } else {
+                    currentSite.setStatus(StatusList.FAILED);
+                    currentSite.setLastError("ForkJoin has not worked");
                 }
-                currentSite.setStatus(StatusList.INDEXED);
                 currentSite.setStatusTime(new Date());
-
+                siteRepository.save(currentSite);
             } else {
-                currentSite.setStatus(StatusList.FAILED);
-                currentSite.setStatusTime(new Date());
-                currentSite.setLastError("ForkJoin has not worked");
+                break;
             }
-            siteRepository.save(currentSite);
-            result = result + "result : true" + "\n";
+            result = result + "true " + "\n";
         }
         return result;
     }
 
+    private void addPageTable(LinkedHashSet<PageLink> links, searchengine.model.Site currentSite) {
+        System.out.println("Set from class PageLink is ready for writing to table!   " + new Date());
+        List<Page> pageList = new ArrayList<>();
+        for ( PageLink p : links ) {
+            pageList.add(new Page(currentSite, p.getUrl(), p.getCode(), p.getContent()));
+        }
+        pageRepository.saveAll(pageList);
+    }
 
     public String stopIndexing() {
-        String result = "Indexing was stoped user!" + "\n";
-        if (siteRepository != null) {
-            for ( searchengine.model.Site recordSite : siteRepository.findAll() ) {
-                if (recordSite.getStatus().equals(StatusList.INDEXING)) {
-                    recordSite.setStatus(StatusList.FAILED);
-                    recordSite.setStatusTime(new Date());
-                    recordSite.setLastError("Indexing was stoped user!");
-                    siteRepository.save(recordSite);
-                    Thread.interrupted();
-                    result = result + "result: true" + "\n";
-                } else {
-                    result = result + " result : false" + "\n" + "error : Индексация не запущена" + "\n";
-                }
+        IndexingSite.setStopIndexing(true);
+        boolean check = false;
+        Iterable<searchengine.model.Site> siteList = siteRepository.findAll();
+        for ( searchengine.model.Site recordSite : siteList ) {
+            if (recordSite.getStatus().equals(StatusList.INDEXING)) {
+                recordSite.setLastError("Indexing was stopped user!");
+                recordSite.setStatus(StatusList.FAILED);
+                recordSite.setStatusTime(new Date());
+                check = true;
             }
         }
-        return result;
+        siteRepository.saveAll(siteList);
+        if (check) {
+            return "true";
+        } else {
+            IndexingSite.setStopIndexing(false);
+            return "false, " + "error: Индексация не запущена";
+        }
     }
 
 }
